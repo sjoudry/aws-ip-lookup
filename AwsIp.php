@@ -31,6 +31,11 @@ class Lookup
     private $elb_domain;
 
     /**
+     * @var string $elb_domain
+     */
+    private $elb_id;
+
+    /**
      * @var string $elb_name
      */
     private $elb_name;
@@ -297,19 +302,19 @@ class Lookup
          */
         $response = shell_exec(
             vsprintf(
-                '%s %s %s --region %s --name %s',
+                '%s %s %s --region %s --query "LoadBalancers[?DNSName == '\%s\']"',
                 [
                     $this->aws,
                     'elbv2',
                     'describe-load-balancers',
                     $this->region,
-                    $this->elb_name,
+                    $this->elb_name . '-' . $this->elb_id . '.' . $this->region . '.elb.amazonaws.com',
                 ]
             )
         );
         $response = json_decode($response);
 
-        $this->elb_arn = $response->LoadBalancers[0]->LoadBalancerArn;
+        $this->elb_arn = $response[0]->LoadBalancerArn;
 
         $this->message('Looked up the ELB ARN for ELB "%s":', [$this->elb_name], 1);
         $this->message('ELB ARN: %s', [$this->elb_arn], 2);
@@ -709,8 +714,9 @@ class Lookup
      */
     private function parseElb()
     {
-        preg_match('/([^\.]*)-[\d]*\.([^\.]*)\.elb\.amazonaws\.com\.?$/i', $this->elb_domain, $matches);
+        preg_match('/([^\.]*)-([\d]*)\.([^\.]*)\.elb\.amazonaws\.com\.?$/i', $this->elb_domain, $matches);
         $this->elb_name = $matches[1];
-        $this->region = $matches[2];
+        $this->elb_id = $matches[2];
+        $this->region = $matches[3];
     }
 }
